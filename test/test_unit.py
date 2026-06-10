@@ -1,0 +1,277 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Unit tests for OVOSToolsPHALPlugin bus handlers.
+
+These tests bypass plugin loading and inject a minimal in-process registry
+so the handler logic can be tested without any installed toolbox plugins.
+"""
+import unittest
+from typing import List
+from unittest.mock import patch
+
+from ovos_bus_client import Message
+from ovos_utils.fakebus import FakeBus
+from pydantic import Field
+
+from ovos_plugin_manager.templates.agent_tools import (
+    AgentTool,
+    ToolArguments,
+    ToolBox,
+    ToolOutput,
+)
+
+
+# ---------------------------------------------------------------------------
+# Minimal fixtures
+# ---------------------------------------------------------------------------
+
+class AddArgs(ToolArguments):
+    a: int = Field(..., description="First operand")
+    b: int = Field(..., description="Second operand")
+
+
+class AddOutput(ToolOutput):
+    result: int = Field(..., description="Sum of a and b")
+
+
+def _add_logic(args: AddArgs) -> AddOutput:
+    return AddOutput(result=args.a + args.b)
+
+
+def _fail_logic(args: AddArgs) -> AddOutput:
+    raise RuntimeError("intentional failure")
+
+
+class MathToolBox(ToolBox):
+    def discover_tools(self) -> List[AgentTool]:
+        return [
+            AgentTool(
+                name="add",
+                description="Add two integers.",
+                argument_schema=AddArgs,
+                output_schema=AddOutput,
+                tool_call=_add_logic,
+            )
+        ]
+
+
+class FailToolBox(ToolBox):
+    def discover_tools(self) -> List[AgentTool]:
+        return [
+            AgentTool(
+                name="fail",
+                description="Always raises.",
+                argument_schema=AddArgs,
+                output_schema=AddOutput,
+                tool_call=_fail_logic,
+            )
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Helper: build a plugin instance with an injected registry
+# ---------------------------------------------------------------------------
+
+def _make_plugin(toolboxes=None):
+    """Return an OVOSToolsPHALPlugin wired to a FakeBus with injected toolboxes."""
+    from ovos_phal_plugin_tools import OVOSToolsPHALPlugin
+
+    bus = FakeBus()
+    # Patch find_toolbox_plugins so no real installed plugins are touched
+    patched_plugins = toolboxes or {}
+    with patch("ovos_phal_plugin_tools.find_toolbox_plugins", return_value=patched_plugins):
+        plugin = OVOSToolsPHALPlugin(bus=bus)
+    return plugin, bus
+
+
+# ---------------------------------------------------------------------------
+# Registry tests
+# ---------------------------------------------------------------------------
+
+class TestRegistry(unittest.TestCase):
+    def test_empty_registry(self):
+        plugin, _ = _make_plugin()
+        self.assertEqual(plugin._toolboxes, {})
+        self.assertEqual(plugin._tool_registry, {})
+
+    def test_registry_populated(self):
+        plugin, _ = _make_plugin({"math_tools": MathToolBox})
+        self.assertIn("math_tools", plugin._toolboxes)
+        self.assertIn("add", plugin._tool_registry)
+
+    def test_collision_logged(self):
+        """Two toolboxes with the same tool name → warning, last wins."""
+        from ovos_phal_plugin_tools import OVOSToolsPHALPlugin
+
+        class DupToolBox(ToolBox):
+            def discover_tools(self):
+                return [
+                    AgentTool(
+                        name="add",
+                        description="duplicate",
+                        argument_schema=AddArgs,
+                        output_schema=AddOutput,
+                        tool_call=_add_logic,
+                    )
+                ]
+
+        bus = FakeBus()
+        with patch("ovos_phal_plugin_tools.find_toolbox_plugins",
+                   return_value={"math_tools": MathToolBox, "dup_tools": DupToolBox}):
+            with patch("ovos_phal_plugin_tools.LOG") as mock_log:
+                plugin = OVOSToolsPHALPlugin(bus=bus)
+                # warning must have been emitted at least once
+                self.assertTrue(mock_log.warning.called)
+        # last-loaded toolbox wins
+        self.assertEqual(plugin._tool_registry["add"].toolbox_id, "dup_tools")
+
+
+# ---------------------------------------------------------------------------
+# ovos.tools.list
+# ---------------------------------------------------------------------------
+
+class TestHandleToolsList(unittest.TestCase):
+    def setUp(self):
+        self.plugin, self.bus = _make_plugin({"math_tools": MathToolBox})
+
+    def test_response_contains_tools(self):
+        responses = []
+        self.bus.on("ovos.tools.list.response", lambda m: responses.append(m))
+        self.bus.emit(Message("ovos.tools.list"))
+        self.assertEqual(len(responses), 1)
+        tools = responses[0].data["tools"]
+        self.assertEqual(len(tools), 1)
+        self.assertEqual(tools[0]["name"], "add")
+        self.assertIn("argument_schema", tools[0])
+        self.assertIn("output_schema", tools[0])
+        self.assertEqual(tools[0]["toolbox_id"], "math_tools")
+
+    def test_response_empty_when_no_toolboxes(self):
+        plugin, bus = _make_plugin()
+        responses = []
+        bus.on("ovos.tools.list.response", lambda m: responses.append(m))
+        bus.emit(Message("ovos.tools.list"))
+        self.assertEqual(responses[0].data["tools"], [])
+
+
+# ---------------------------------------------------------------------------
+# ovos.tools.get
+# ---------------------------------------------------------------------------
+
+class TestHandleToolsGet(unittest.TestCase):
+    def setUp(self):
+        self.plugin, self.bus = _make_plugin({"math_tools": MathToolBox})
+
+    def _get(self, payload):
+        responses = []
+        self.bus.on("ovos.tools.get.response", lambda m: responses.append(m))
+        self.bus.emit(Message("ovos.tools.get", payload))
+        return responses[0].data
+
+    def test_get_known_tool(self):
+        data = self._get({"name": "add"})
+        self.assertEqual(data["name"], "add")
+        self.assertIn("argument_schema", data)
+        self.assertIn("output_schema", data)
+        self.assertEqual(data["toolbox_id"], "math_tools")
+        self.assertNotIn("error", data)
+
+    def test_get_unknown_tool(self):
+        data = self._get({"name": "nope"})
+        self.assertIn("error", data)
+        self.assertIn("nope", data["error"])
+
+    def test_get_missing_name(self):
+        data = self._get({})
+        self.assertIn("error", data)
+        self.assertIn("name", data["error"])
+
+
+# ---------------------------------------------------------------------------
+# ovos.tools.invoke
+# ---------------------------------------------------------------------------
+
+class TestHandleToolsInvoke(unittest.TestCase):
+    def setUp(self):
+        self.plugin, self.bus = _make_plugin(
+            {"math_tools": MathToolBox, "fail_tools": FailToolBox}
+        )
+
+    def _invoke(self, payload):
+        responses = []
+        self.bus.on("ovos.tools.invoke.response", lambda m: responses.append(m))
+        self.bus.emit(Message("ovos.tools.invoke", payload))
+        return responses[0].data
+
+    def test_invoke_success(self):
+        data = self._invoke({"name": "add", "args": {"a": 3, "b": 4}})
+        self.assertEqual(data["name"], "add")
+        self.assertEqual(data["result"]["result"], 7)
+        self.assertNotIn("error", data)
+
+    def test_invoke_unknown_tool(self):
+        data = self._invoke({"name": "nope", "args": {}})
+        self.assertEqual(data["name"], "nope")
+        self.assertIn("error", data)
+        self.assertIn("nope", data["error"])
+
+    def test_invoke_missing_name(self):
+        data = self._invoke({"args": {"a": 1, "b": 2}})
+        self.assertEqual(data["name"], "")
+        self.assertIn("error", data)
+
+    def test_invoke_bad_args(self):
+        data = self._invoke({"name": "add", "args": {"a": "not_int", "b": 2}})
+        self.assertIn("error", data)
+
+    def test_invoke_tool_raises(self):
+        data = self._invoke({"name": "fail", "args": {"a": 1, "b": 2}})
+        self.assertIn("error", data)
+        self.assertIn("fail", data["name"])
+
+    def test_name_echoed_on_all_responses(self):
+        for name, args in [
+            ("add", {"a": 1, "b": 2}),
+            ("nope", {}),
+            ("fail", {"a": 1, "b": 2}),
+        ]:
+            data = self._invoke({"name": name, "args": args})
+            self.assertEqual(data["name"], name)
+
+
+# ---------------------------------------------------------------------------
+# ovos.tools.reload
+# ---------------------------------------------------------------------------
+
+class TestHandleToolsReload(unittest.TestCase):
+    def test_reload_repopulates_registry(self):
+        plugin, bus = _make_plugin({"math_tools": MathToolBox})
+        # manually clear to simulate stale state
+        plugin._toolboxes.clear()
+        plugin._tool_registry.clear()
+
+        responses = []
+        bus.on("ovos.tools.reload.response", lambda m: responses.append(m))
+
+        with patch("ovos_phal_plugin_tools.find_toolbox_plugins",
+                   return_value={"math_tools": MathToolBox}):
+            bus.emit(Message("ovos.tools.reload"))
+
+        self.assertEqual(len(responses), 1)
+        data = responses[0].data
+        self.assertIn("math_tools", data["loaded"])
+        self.assertEqual(data["total_tools"], 1)
+        self.assertIn("add", plugin._tool_registry)
+
+
+if __name__ == "__main__":
+    unittest.main()
