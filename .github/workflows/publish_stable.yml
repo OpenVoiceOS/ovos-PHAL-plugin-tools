@@ -1,0 +1,18 @@
+name: Publish Stable Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  publish_stable:
+    uses: OpenVoiceOS/gh-automations/.github/workflows/publish-stable.yml@dev
+    secrets:
+      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+      MATRIX_TOKEN: ${{ secrets.MATRIX_TOKEN }}
+    with:
+      branch: 'master'
+      version_file: 'ovos_phal_plugin_tools/version.py'
