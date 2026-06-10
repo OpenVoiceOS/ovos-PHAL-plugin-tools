@@ -15,7 +15,7 @@ from ovos_plugin_manager.phal import PHALPlugin
 from ovos_plugin_manager.persona import find_toolbox_plugins
 from ovos_plugin_manager.templates.agent_tools import ToolBox
 from ovos_utils.log import LOG
-from ovos_utils.messagebus import Message
+from ovos_bus_client import Message
 from ovos_utils.process_utils import RuntimeRequirements
 
 
