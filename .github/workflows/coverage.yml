@@ -13,5 +13,5 @@ jobs:
       python_version: '3.11'
       coverage_source: 'ovos_phal_plugin_tools'
       test_path: 'test/'
-      install_extras: 'test'
+      install_extras: '.[test]'
       min_coverage: 0
