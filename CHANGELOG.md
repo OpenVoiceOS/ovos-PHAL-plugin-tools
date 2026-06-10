@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.1a3](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/tree/0.0.1a3) (2026-06-10)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/compare/0.0.1a2...0.0.1a3)
+
+**Merged pull requests:**
+
+- Configure Renovate [\#2](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/pull/2) ([renovate[bot]](https://github.com/apps/renovate))
+
 ## [0.0.1a2](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/tree/0.0.1a2) (2026-06-10)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/compare/f951a481109ecefdb6ada93b4db0bf5409e7cab3...0.0.1a2)
