@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.1a4](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/tree/0.0.1a4) (2026-06-11)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/compare/0.0.1a3...0.0.1a4)
+
+**Merged pull requests:**
+
+- test\(ovoscope\): bus-level ovoscope suite for PHAL tools API [\#3](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/pull/3) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [0.0.1a3](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/tree/0.0.1a3) (2026-06-10)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/compare/0.0.1a2...0.0.1a3)
