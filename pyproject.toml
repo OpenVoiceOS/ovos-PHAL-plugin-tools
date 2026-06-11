@@ -22,7 +22,7 @@ Homepage = "https://github.com/TigreGotico/ovos-PHAL-plugin-tools"
 Repository = "https://github.com/TigreGotico/ovos-PHAL-plugin-tools"
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-cov"]
+test = ["pytest", "pytest-cov", "ovoscope>=0.14.0a1"]
 
 [project.entry-points."ovos.plugin.phal"]
 ovos-phal-plugin-tools = "ovos_phal_plugin_tools:OVOSToolsPHALPlugin"

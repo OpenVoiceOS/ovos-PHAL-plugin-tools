@@ -9,7 +9,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Dict, Optional, Type
+from __future__ import annotations
+
+from typing import Any, Dict, Optional, Type
 
 from ovos_plugin_manager.phal import PHALPlugin
 from ovos_plugin_manager.persona import find_toolbox_plugins
@@ -33,7 +35,7 @@ class OVOSToolsPHALPlugin(PHALPlugin):
     one wins and a warning is logged.
     """
 
-    def __init__(self, bus=None, config=None):
+    def __init__(self, bus: Any = None, config: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(bus, "ovos-phal-plugin-tools", config)
         self._toolboxes: Dict[str, ToolBox] = {}
         # registry: tool_name → (toolbox_id, ToolBox)
