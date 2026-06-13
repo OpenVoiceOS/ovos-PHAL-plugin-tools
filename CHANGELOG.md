@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.1a5](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/tree/0.0.1a5) (2026-06-13)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/compare/0.0.1a4...0.0.1a5)
+
+**Merged pull requests:**
+
+- docs: standardize NGI0 Commons Fund attribution [\#6](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/pull/6) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [0.0.1a4](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/tree/0.0.1a4) (2026-06-11)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/compare/0.0.1a3...0.0.1a4)
