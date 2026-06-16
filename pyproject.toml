@@ -13,7 +13,7 @@ requires-python = ">=3.10"
 dependencies = [
     "ovos-plugin-manager>=2.3.0a1,<3.0.0",
     "ovos-utils>=0.1.0,<1.0.0",
-    "ovos-bus-client>=0.0.8,<2.0.0",
+    "ovos-bus-client>=0.0.8,<3.0.0",
     "pydantic>=2.0.0",
 ]
 
@@ -22,7 +22,7 @@ Homepage = "https://github.com/TigreGotico/ovos-PHAL-plugin-tools"
 Repository = "https://github.com/TigreGotico/ovos-PHAL-plugin-tools"
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-cov", "ovoscope>=0.14.0a1"]
+test = ["pytest", "pytest-cov", "ovoscope>=0.14.0a1,<1.0.0"]
 
 [project.entry-points."opm.phal"]
 ovos-phal-plugin-tools = "ovos_phal_plugin_tools:OVOSToolsPHALPlugin"
