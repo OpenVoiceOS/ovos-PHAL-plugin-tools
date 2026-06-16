@@ -22,7 +22,10 @@ Homepage = "https://github.com/TigreGotico/ovos-PHAL-plugin-tools"
 Repository = "https://github.com/TigreGotico/ovos-PHAL-plugin-tools"
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-cov", "ovoscope>=0.14.0a1,<1.0.0"]
+# ovoscope's released pytest plugin uses the pre-8.0 pytest_pycollect_makemodule
+# hook signature (`path` arg), which pytest>=8 rejected; pin pytest<8 until a
+# fixed ovoscope is on PyPI.
+test = ["pytest<8", "pytest-cov", "ovoscope>=0.14.0a1,<1.0.0"]
 
 [project.entry-points."opm.phal"]
 ovos-phal-plugin-tools = "ovos_phal_plugin_tools:OVOSToolsPHALPlugin"
