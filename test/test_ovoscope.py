@@ -100,7 +100,14 @@ def _bomb_logic(args: BombArgs) -> BombOutput:
 
 
 class SyntheticToolBox(ToolBox):
-    """Minimal toolbox with two tools: add (succeeds) and bomb (always raises)."""
+    """Minimal toolbox with two tools: add (succeeds) and bomb (always raises).
+
+    Shaped like a real plugin: only accepts (config, bus); toolbox_id is
+    supplied internally, never by the caller.
+    """
+
+    def __init__(self, config=None, bus=None):
+        super().__init__(toolbox_id="synthetic_tools", config=config, bus=bus)
 
     def discover_tools(self) -> List[AgentTool]:
         return [

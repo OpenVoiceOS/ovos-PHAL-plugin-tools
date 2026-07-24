@@ -44,7 +44,14 @@ class MultiplyOutput(ToolOutput):
 
 
 class E2EToolBox(ToolBox):
-    """Minimal toolbox for end-to-end tests."""
+    """Minimal toolbox for end-to-end tests.
+
+    Shaped like a real plugin: only accepts (config, bus); toolbox_id is
+    supplied internally, never by the caller.
+    """
+
+    def __init__(self, config=None, bus=None):
+        super().__init__(toolbox_id="e2e_tools", config=config, bus=bus)
 
     def discover_tools(self) -> List[AgentTool]:
         return [
