@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.2a2](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/tree/0.0.2a2) (2026-07-31)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/compare/0.0.2a1...0.0.2a2)
+
+**Merged pull requests:**
+
+- docs: rewrite README in Simplified Technical English [\#11](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/pull/11) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [0.0.2a1](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/tree/0.0.2a1) (2026-07-24)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/compare/0.0.1a6...0.0.2a1)
