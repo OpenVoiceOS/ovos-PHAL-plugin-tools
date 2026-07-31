@@ -1,13 +1,13 @@
 # ovos-PHAL-plugin-tools
 
-A PHAL (Platform / Hardware Abstraction Layer) service provider that exposes all
+A PHAL (Platform / Hardware Abstraction Layer) service provider that exposes
 installed OPM **ToolBox** plugins (`opm.agents.toolbox` entry-point group) as a
-unified bus API.
+bus API.
 
-Any skill, agent, or external client connected to the OVOS messagebus can:
+Any skill, agent, or external client on the OVOS messagebus can:
 
-- enumerate every available tool and its JSON Schema
-- fetch a single tool's full schema
+- list every available tool and its JSON Schema
+- get a single tool's full schema
 - invoke a tool by name with keyword arguments
 
 ---
@@ -19,7 +19,7 @@ request event name suffixed with `.response`.
 
 ### `ovos.tools.list`
 
-Enumerate all tools registered across every loaded toolbox.
+List all tools registered across every loaded toolbox.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -76,7 +76,7 @@ Enumerate all tools registered across every loaded toolbox.
 
 ### `ovos.tools.get`
 
-Retrieve the full schema of a single named tool.
+Get the full schema of a single named tool.
 
 **Request payload:**
 
@@ -159,10 +159,10 @@ Error:
 // response (success)
 {"name": "add", "result": {"result": 7}}
 
-// response (error — bad args)
+// response (error, bad args)
 {"name": "add", "error": "ValueError: Tool input validation failed for 'add' ..."}
 
-// response (error — unknown tool)
+// response (error, unknown tool)
 {"name": "nope", "error": "Unknown tool: 'nope'"}
 ```
 
@@ -170,8 +170,8 @@ Error:
 
 ### `ovos.tools.reload`
 
-Hot-reload the toolbox registry without restarting OVOS.  Useful after
-installing new toolbox plugins at runtime.
+Reload the toolbox registry without restarting OVOS. Use this after you
+install new toolbox plugins at runtime.
 
 **Request payload:** *(none)*
 
@@ -195,7 +195,7 @@ bus.run_in_thread()
 # --- list all tools ---
 response = bus.wait_for_response(Message("ovos.tools.list"))
 for tool in response.data["tools"]:
-    print(tool["name"], "—", tool["description"])
+    print(tool["name"], "-", tool["description"])
 
 # --- get schema for one tool ---
 response = bus.wait_for_response(
@@ -233,16 +233,17 @@ Enable in your OVOS config (`mycroft.conf`):
 }
 ```
 
-Install one or more toolbox plugins (entry-point group `opm.agents.toolbox`) and
-the service will discover them automatically at startup.  Call
+Install one or more toolbox plugins (entry-point group `opm.agents.toolbox`).
+The service discovers them automatically at startup. Send
 `ovos.tools.reload` if you install plugins while OVOS is already running.
 
 ---
 
 ## Writing a ToolBox plugin
 
-Implement `ovos_plugin_manager.templates.agent_tools.ToolBox` and register under
-the `opm.agents.toolbox` entry-point group in your package's `pyproject.toml`:
+Implement `ovos_plugin_manager.templates.agent_tools.ToolBox` and register it
+under the `opm.agents.toolbox` entry-point group in your package's
+`pyproject.toml`:
 
 ```toml
 [project.entry-points."opm.agents.toolbox"]
@@ -281,6 +282,15 @@ class MyMathToolBox(ToolBox):
 
 ---
 
+## Related projects
+
+- [ovos-plugin-manager](https://github.com/OpenVoiceOS/ovos-plugin-manager)
+  defines the `ToolBox` template and the `opm.agents.toolbox` plugin group.
+- [ovos-bus-client](https://github.com/OpenVoiceOS/ovos-bus-client) is the
+  messagebus client used to send `ovos.tools.*` events.
+- [ovos-PHAL](https://github.com/OpenVoiceOS/ovos-PHAL) is the PHAL framework
+  that loads this plugin.
+
 ---
 
 ## Credits
@@ -300,4 +310,4 @@ under grant agreement No [101135429](https://cordis.europa.eu/project/id/1011354
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0. See [LICENSE](LICENSE).
