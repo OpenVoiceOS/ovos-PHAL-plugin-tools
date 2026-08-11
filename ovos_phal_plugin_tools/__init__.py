@@ -68,7 +68,7 @@ class OVOSToolsPHALPlugin(PHALPlugin):
         LOG.info(f"[ovos-phal-plugin-tools] found {len(plugins)} toolbox plugin(s): {list(plugins.keys())}")
         for ep_name, cls in plugins.items():
             try:
-                tb = cls(toolbox_id=ep_name, bus=self.bus)
+                tb = cls(config=self.config.get(ep_name, {}), bus=self.bus)
                 self._toolboxes[ep_name] = tb
                 for tool_name in tb.tools:
                     if tool_name in self._tool_registry:
@@ -80,7 +80,7 @@ class OVOSToolsPHALPlugin(PHALPlugin):
                     self._tool_registry[tool_name] = tb
                 LOG.debug(f"[ovos-phal-plugin-tools] loaded toolbox '{ep_name}' with tools: {list(tb.tools.keys())}")
             except Exception as e:
-                LOG.exception(f"[ovos-phal-plugin-tools] failed to load toolbox '{ep_name}': {e}")
+                LOG.exception(f"[ovos-phal-plugin-tools] failed to load toolbox '{ep_name}' ({cls}): {e}")
 
     def _register_bus_handlers(self) -> None:
         self.bus.on("ovos.tools.list", self.handle_tools_list)
