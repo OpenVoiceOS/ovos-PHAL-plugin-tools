@@ -15,10 +15,11 @@ These tests bypass plugin loading and inject a minimal in-process registry
 so the handler logic can be tested without any installed toolbox plugins.
 """
 import unittest
-from typing import List
+from typing import Any, Dict, List, Optional, Union
 from unittest.mock import patch
 
 from ovos_bus_client import Message
+from ovos_bus_client.client import MessageBusClient
 from ovos_utils.fakebus import FakeBus
 from pydantic import Field
 
@@ -52,6 +53,15 @@ def _fail_logic(args: AddArgs) -> AddOutput:
 
 
 class MathToolBox(ToolBox):
+    """Mirrors the real-world plugin contract: subclasses supply their own
+    ``toolbox_id`` to ``super().__init__()`` and only expose ``(config, bus)``
+    in their own constructor - callers must never pass ``toolbox_id``."""
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None,
+                 bus: Optional[Union[MessageBusClient, FakeBus]] = None):
+        self.received_config = config
+        super().__init__(toolbox_id="math_tools", config=config, bus=bus)
+
     def discover_tools(self) -> List[AgentTool]:
         return [
             AgentTool(
@@ -65,6 +75,10 @@ class MathToolBox(ToolBox):
 
 
 class FailToolBox(ToolBox):
+    def __init__(self, config: Optional[Dict[str, Any]] = None,
+                 bus: Optional[Union[MessageBusClient, FakeBus]] = None):
+        super().__init__(toolbox_id="fail_tools", config=config, bus=bus)
+
     def discover_tools(self) -> List[AgentTool]:
         return [
             AgentTool(
@@ -81,7 +95,7 @@ class FailToolBox(ToolBox):
 # Helper: build a plugin instance with an injected registry
 # ---------------------------------------------------------------------------
 
-def _make_plugin(toolboxes=None):
+def _make_plugin(toolboxes=None, config=None):
     """Return an OVOSToolsPHALPlugin wired to a FakeBus with injected toolboxes."""
     from ovos_phal_plugin_tools import OVOSToolsPHALPlugin
 
@@ -89,8 +103,71 @@ def _make_plugin(toolboxes=None):
     # Patch find_toolbox_plugins so no real installed plugins are touched
     patched_plugins = toolboxes or {}
     with patch("ovos_phal_plugin_tools.find_toolbox_plugins", return_value=patched_plugins):
-        plugin = OVOSToolsPHALPlugin(bus=bus)
+        plugin = OVOSToolsPHALPlugin(bus=bus, config=config)
     return plugin, bus
+
+
+# ---------------------------------------------------------------------------
+# Regression: ToolBox plugins take (config, bus), NOT toolbox_id
+# ---------------------------------------------------------------------------
+#
+# Real ToolBox plugins (e.g. ovos-agentic-loop's clock/math/web/filesystem/shell
+# tools, ovos-ddg-plugin, ovos-wikipedia-plugin) supply their own `toolbox_id`
+# to `super().__init__()` and only expose `(config=None, bus=None)` in their
+# own `__init__`. Calling `cls(toolbox_id=ep_name, bus=self.bus)` therefore
+# raises `TypeError: __init__() got an unexpected keyword argument
+# 'toolbox_id'` for every real toolbox plugin. Because the loader wraps this
+# in a per-toolbox try/except, the failure was previously silent: zero
+# toolboxes loaded and only a debug-level log line said why. This test would
+# have caught that silent zero-toolbox load.
+
+class RealWorldToolBox(ToolBox):
+    """Shaped exactly like a real installed plugin: constructor only accepts
+    ``config`` and ``bus``, never ``toolbox_id``."""
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None,
+                 bus: Optional[Union[MessageBusClient, FakeBus]] = None):
+        self.received_config = config
+        super().__init__(toolbox_id="real_world_tools", config=config, bus=bus)
+
+    def discover_tools(self) -> List[AgentTool]:
+        return [
+            AgentTool(
+                name="ping",
+                description="Return pong.",
+                argument_schema=ToolArguments,
+                output_schema=ToolOutput,
+                tool_call=lambda args: ToolOutput(),
+            )
+        ]
+
+
+class TestRealWorldToolBoxContract(unittest.TestCase):
+    def test_toolbox_instantiates_without_toolbox_id_kwarg(self):
+        """The loader must not pass toolbox_id= to the plugin constructor."""
+        plugin, _ = _make_plugin(
+            {"real_world_tools": RealWorldToolBox},
+            config={"real_world_tools": {"greeting": "hi"}},
+        )
+        # A silent zero-toolbox load is exactly the bug: assert non-empty.
+        self.assertNotEqual(plugin._toolboxes, {})
+        self.assertIn("real_world_tools", plugin._toolboxes)
+        self.assertIn("ping", plugin._tool_registry)
+
+    def test_toolbox_receives_its_own_config(self):
+        """Per-toolbox config must be sourced from self.config, not ignored."""
+        plugin, _ = _make_plugin(
+            {"real_world_tools": RealWorldToolBox},
+            config={"real_world_tools": {"greeting": "hi"}},
+        )
+        tb = plugin._toolboxes["real_world_tools"]
+        self.assertEqual(tb.received_config, {"greeting": "hi"})
+
+    def test_toolbox_defaults_to_empty_config(self):
+        """Toolboxes with no matching config key still load, with {}."""
+        plugin, _ = _make_plugin({"real_world_tools": RealWorldToolBox})
+        tb = plugin._toolboxes["real_world_tools"]
+        self.assertEqual(tb.received_config, {})
 
 
 # ---------------------------------------------------------------------------
@@ -113,6 +190,9 @@ class TestRegistry(unittest.TestCase):
         from ovos_phal_plugin_tools import OVOSToolsPHALPlugin
 
         class DupToolBox(ToolBox):
+            def __init__(self, config=None, bus=None):
+                super().__init__(toolbox_id="dup_tools", config=config, bus=bus)
+
             def discover_tools(self):
                 return [
                     AgentTool(

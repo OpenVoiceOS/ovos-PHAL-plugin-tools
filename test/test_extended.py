@@ -51,6 +51,11 @@ def _raise_logic(args: AddArgs) -> AddOutput:
 
 
 class MathToolBox(ToolBox):
+    """Shaped like a real plugin: only accepts (config, bus)."""
+
+    def __init__(self, config=None, bus=None):
+        super().__init__(toolbox_id="math_tools", config=config, bus=bus)
+
     def discover_tools(self) -> List[AgentTool]:
         return [
             AgentTool(
@@ -64,6 +69,9 @@ class MathToolBox(ToolBox):
 
 
 class ExtraToolBox(ToolBox):
+    def __init__(self, config=None, bus=None):
+        super().__init__(toolbox_id="extra_tools", config=config, bus=bus)
+
     def discover_tools(self) -> List[AgentTool]:
         return [
             AgentTool(
@@ -77,6 +85,9 @@ class ExtraToolBox(ToolBox):
 
 
 class RaiseToolBox(ToolBox):
+    def __init__(self, config=None, bus=None):
+        super().__init__(toolbox_id="raise_tools", config=config, bus=bus)
+
     def discover_tools(self) -> List[AgentTool]:
         return [
             AgentTool(
