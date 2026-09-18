@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.3a2](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/tree/0.0.3a2) (2026-09-18)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/compare/0.0.3a1...0.0.3a2)
+
+**Merged pull requests:**
+
+- Update dependency ovoscope to v1 [\#9](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/pull/9) ([renovate[bot]](https://github.com/apps/renovate))
+
 ## [0.0.3a1](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/tree/0.0.3a1) (2026-09-10)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/compare/0.0.2a2...0.0.3a1)
