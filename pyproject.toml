@@ -11,21 +11,20 @@ license = "Apache-2.0"
 authors = [{name = "JarbasAi", email = "jarbasai@mailfence.com"}]
 requires-python = ">=3.10"
 dependencies = [
-    "ovos-plugin-manager>=2.11.1a1,<3.0.0",
-    "ovos-utils>=0.1.0,<1.0.0",
-    "ovos-bus-client>=0.0.8,<3.0.0",
+    "ovos-plugin-manager>=2.11.1a1",
+    "ovos-utils>=0.1.0",
+    "ovos-bus-client>=0.0.8",
     "pydantic>=2.0.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/TigreGotico/ovos-PHAL-plugin-tools"
-Repository = "https://github.com/TigreGotico/ovos-PHAL-plugin-tools"
+Homepage = "https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools"
+Repository = "https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools"
 
 [project.optional-dependencies]
-# ovoscope>=1.5.0 requires pytest>=8 (fixed the pre-8.0
-# pytest_pycollect_makemodule hook signature dependency), so the pytest<8
-# workaround pin is now obsolete and conflicts with ovoscope's own floor.
-test = ["pytest>=8", "pytest-cov", "ovoscope>=1.5.0,<1.6.0"]
+# ovoscope>=1.5.0 requires pytest>=8 (it fixed the pre-8.0
+# pytest_pycollect_makemodule hook signature dependency).
+test = ["pytest>=8", "pytest-cov", "ovoscope>=1.5.0"]
 
 [project.entry-points."opm.phal"]
 ovos-phal-plugin-tools = "ovos_phal_plugin_tools:OVOSToolsPHALPlugin"
