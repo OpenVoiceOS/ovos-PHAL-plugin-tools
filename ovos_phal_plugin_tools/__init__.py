@@ -63,13 +63,26 @@ class OVOSToolsPHALPlugin(PHALPlugin):
     # ------------------------------------------------------------------
 
     def _load_toolboxes(self) -> None:
-        """Discover and instantiate all installed ToolBox plugins."""
+        """Discover installed ToolBox plugins and build the tool registry.
+
+        A toolbox already loaded is kept and its tools refreshed. Building it
+        again would bind a second set of its bus handlers, so every toolbox
+        topic would be answered, and every call run, once more per reload.
+        A toolbox whose plugin is gone is unbound from the bus and dropped.
+        """
         plugins: Dict[str, Type[ToolBox]] = find_toolbox_plugins()
         LOG.info(f"[ovos-phal-plugin-tools] found {len(plugins)} toolbox plugin(s): {list(plugins.keys())}")
+        for ep_name in set(self._toolboxes) - set(plugins):
+            self._unbind(self._toolboxes.pop(ep_name))
+        self._tool_registry.clear()
         for ep_name, cls in plugins.items():
             try:
-                tb = cls(config=self.config.get(ep_name, {}), bus=self.bus)
-                self._toolboxes[ep_name] = tb
+                tb = self._toolboxes.get(ep_name)
+                if tb is None:
+                    tb = cls(config=self.config.get(ep_name, {}), bus=self.bus)
+                    self._toolboxes[ep_name] = tb
+                else:
+                    tb.refresh_tools()
                 for tool_name in tb.tools:
                     if tool_name in self._tool_registry:
                         LOG.warning(
@@ -81,6 +94,17 @@ class OVOSToolsPHALPlugin(PHALPlugin):
                 LOG.debug(f"[ovos-phal-plugin-tools] loaded toolbox '{ep_name}' with tools: {list(tb.tools.keys())}")
             except Exception as e:
                 LOG.exception(f"[ovos-phal-plugin-tools] failed to load toolbox '{ep_name}' ({cls}): {e}")
+
+    def _unbind(self, tb: ToolBox) -> None:
+        """Remove the bus handlers ``ToolBox.bind()`` registered for *tb*.
+
+        Removing a handler that was never registered is a no-op, so this holds
+        for ovos-plugin-manager versions with and without the static
+        ``ovos.persona.tools.call`` topic (OVOS-TOOLS-1 §4.2).
+        """
+        self.bus.remove("ovos.persona.tools.discover", tb.handle_discover)
+        self.bus.remove("ovos.persona.tools.call", tb.handle_call)
+        self.bus.remove(f"ovos.persona.tools.{tb.toolbox_id}.call", tb.handle_call)
 
     def _register_bus_handlers(self) -> None:
         self.bus.on("ovos.tools.list", self.handle_tools_list)
@@ -212,8 +236,6 @@ class OVOSToolsPHALPlugin(PHALPlugin):
 
             {"loaded": ["math_tools", ...], "total_tools": 3}
         """
-        self._toolboxes.clear()
-        self._tool_registry.clear()
         self._load_toolboxes()
         total_tools = sum(len(tb.tools) for tb in self._toolboxes.values())
         self.bus.emit(message.response({
