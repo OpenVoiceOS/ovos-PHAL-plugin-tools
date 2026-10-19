@@ -186,7 +186,7 @@ class TestRegistry(unittest.TestCase):
         self.assertIn("add", plugin._tool_registry)
 
     def test_collision_logged(self):
-        """Two toolboxes with the same tool name → warning, last wins."""
+        """Two toolboxes with the same tool name → warning, both recorded."""
         from ovos_phal_plugin_tools import OVOSToolsPHALPlugin
 
         class DupToolBox(ToolBox):
@@ -211,8 +211,9 @@ class TestRegistry(unittest.TestCase):
                 plugin = OVOSToolsPHALPlugin(bus=bus)
                 # warning must have been emitted at least once
                 self.assertTrue(mock_log.warning.called)
-        # last-loaded toolbox wins
-        self.assertEqual(plugin._tool_registry["add"].toolbox_id, "dup_tools")
+        # neither toolbox wins: both stay recorded as owners of the name
+        self.assertEqual([tb.toolbox_id for tb in plugin._tool_registry["add"]],
+                         ["math_tools", "dup_tools"])
 
 
 # ---------------------------------------------------------------------------

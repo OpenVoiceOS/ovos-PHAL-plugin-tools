@@ -11,7 +11,7 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from ovos_plugin_manager.phal import PHALPlugin
 from ovos_plugin_manager.persona import find_toolbox_plugins
@@ -30,16 +30,17 @@ class OVOSToolsPHALPlugin(PHALPlugin):
       - invoke a tool by name with keyword arguments
 
     The plugin loads all ``opm.agents.toolbox`` entry-point plugins at startup
-    and keeps an in-memory registry keyed by ``tool_name``.  Tool names must be
-    unique across toolboxes; if two toolboxes register the same name the later
-    one wins and a warning is logged.
+    and keeps an in-memory registry keyed by ``tool_name``.  The service
+    namespace is flat, so a name two toolboxes both own cannot be resolved:
+    ``ovos.tools.get`` and ``ovos.tools.invoke`` answer an error for it
+    (OVOS-TOOLS-1 §5), and a warning is logged at load.
     """
 
     def __init__(self, bus: Any = None, config: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(bus, "ovos-phal-plugin-tools", config)
         self._toolboxes: Dict[str, ToolBox] = {}
-        # registry: tool_name → (toolbox_id, ToolBox)
-        self._tool_registry: Dict[str, ToolBox] = {}
+        # registry: tool_name → every ToolBox that owns a tool of that name
+        self._tool_registry: Dict[str, List[ToolBox]] = {}
         self._load_toolboxes()
         self._register_bus_handlers()
 
@@ -84,13 +85,14 @@ class OVOSToolsPHALPlugin(PHALPlugin):
                 else:
                     tb.refresh_tools()
                 for tool_name in tb.tools:
-                    if tool_name in self._tool_registry:
+                    owners = self._tool_registry.setdefault(tool_name, [])
+                    if owners:
                         LOG.warning(
                             f"[ovos-phal-plugin-tools] tool name collision: '{tool_name}' "
-                            f"already registered from toolbox '{self._tool_registry[tool_name].toolbox_id}', "
-                            f"overwriting with toolbox '{ep_name}'"
+                            f"is owned by toolboxes {[o.toolbox_id for o in owners] + [ep_name]}; "
+                            f"ovos.tools.get and ovos.tools.invoke answer an error for it"
                         )
-                    self._tool_registry[tool_name] = tb
+                    owners.append(tb)
                 LOG.debug(f"[ovos-phal-plugin-tools] loaded toolbox '{ep_name}' with tools: {list(tb.tools.keys())}")
             except Exception as e:
                 LOG.exception(f"[ovos-phal-plugin-tools] failed to load toolbox '{ep_name}' ({cls}): {e}")
@@ -105,6 +107,16 @@ class OVOSToolsPHALPlugin(PHALPlugin):
         self.bus.remove("ovos.persona.tools.discover", tb.handle_discover)
         self.bus.remove("ovos.persona.tools.call", tb.handle_call)
         self.bus.remove(f"ovos.persona.tools.{tb.toolbox_id}.call", tb.handle_call)
+
+    def _resolve(self, name: str) -> Tuple[Optional[ToolBox], Optional[str]]:
+        """Return the one toolbox that owns *name*, or the error to answer."""
+        owners = self._tool_registry.get(name, [])
+        if not owners:
+            return None, f"Unknown tool: '{name}'"
+        if len(owners) > 1:
+            ids = ", ".join(f"'{tb.toolbox_id}'" for tb in owners)
+            return None, f"Ambiguous tool: '{name}' is owned by toolboxes {ids}"
+        return owners[0], None
 
     def _register_bus_handlers(self) -> None:
         self.bus.on("ovos.tools.list", self.handle_tools_list)
@@ -169,9 +181,9 @@ class OVOSToolsPHALPlugin(PHALPlugin):
         if not name:
             self.bus.emit(message.response({"error": "Missing required field: 'name'"}))
             return
-        tb: Optional[ToolBox] = self._tool_registry.get(name)
-        if tb is None:
-            self.bus.emit(message.response({"error": f"Unknown tool: '{name}'"}))
+        tb, error = self._resolve(name)
+        if error:
+            self.bus.emit(message.response({"error": error}))
             return
         tool = tb.get_tool(name)
         if tool is None:
@@ -209,9 +221,9 @@ class OVOSToolsPHALPlugin(PHALPlugin):
             self.bus.emit(message.response({"name": "", "error": "Missing required field: 'name'"}))
             return
 
-        tb: Optional[ToolBox] = self._tool_registry.get(name)
-        if tb is None:
-            self.bus.emit(message.response({"name": name, "error": f"Unknown tool: '{name}'"}))
+        tb, error = self._resolve(name)
+        if error:
+            self.bus.emit(message.response({"name": name, "error": error}))
             return
 
         try:
