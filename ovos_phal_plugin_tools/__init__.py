@@ -108,6 +108,12 @@ class OVOSToolsPHALPlugin(PHALPlugin):
         self.bus.remove("ovos.persona.tools.call", tb.handle_call)
         self.bus.remove(f"ovos.persona.tools.{tb.toolbox_id}.call", tb.handle_call)
 
+    def _tool_definitions(self) -> List[Dict[str, Any]]:
+        """Every loaded tool as an OVOS-TOOLS-1 §3 definition."""
+        return [{**entry, "toolbox_id": tb.toolbox_id}
+                for tb in self._toolboxes.values()
+                for entry in tb.tool_json_list]
+
     def _resolve(self, name: str) -> Tuple[Optional[ToolBox], Optional[str]]:
         """Return the one toolbox that owns *name*, or the error to answer."""
         owners = self._tool_registry.get(name, [])
@@ -148,11 +154,7 @@ class OVOSToolsPHALPlugin(PHALPlugin):
                 ]
             }
         """
-        tools = []
-        for tb in self._toolboxes.values():
-            for entry in tb.tool_json_list:
-                tools.append({**entry, "toolbox_id": tb.toolbox_id})
-        self.bus.emit(message.response({"tools": tools}))
+        self.bus.emit(message.response({"tools": self._tool_definitions()}))
 
     def handle_tools_get(self, message: Message) -> None:
         """Reply to ``ovos.tools.get`` with a single tool's schema.
@@ -244,13 +246,14 @@ class OVOSToolsPHALPlugin(PHALPlugin):
 
         Response event: ``ovos.tools.reload.response``
 
-        Response payload::
+        Response payload (``tools`` as in ``ovos.tools.list``, OVOS-TOOLS-1 §5)::
 
-            {"loaded": ["math_tools", ...], "total_tools": 3}
+            {"tools": [...], "loaded": ["math_tools", ...], "total_tools": 3}
         """
         self._load_toolboxes()
-        total_tools = sum(len(tb.tools) for tb in self._toolboxes.values())
+        tools = self._tool_definitions()
         self.bus.emit(message.response({
+            "tools": tools,
             "loaded": list(self._toolboxes.keys()),
-            "total_tools": total_tools,
+            "total_tools": len(tools),
         }))
