@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.4a1](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/tree/0.0.4a1) (2026-10-20)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/compare/0.0.3a2...0.0.4a1)
+
+**Merged pull requests:**
+
+- fix\(deps\): accept ovos-plugin-manager 3 [\#13](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/pull/13) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
+
 ## [0.0.3a2](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/tree/0.0.3a2) (2026-09-18)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-PHAL-plugin-tools/compare/0.0.3a1...0.0.3a2)
